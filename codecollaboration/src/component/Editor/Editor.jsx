@@ -18,6 +18,7 @@ function Editor() {
   const navigate = useNavigate();
   const socketRef = useRef(null); // Reference to the socket connection
   const [members, setMembers] = useState([]); // State to track members in the room
+  const [socketReady, setSocketReady] = useState(false); // New state to track socket readiness
 
   // Restore roomId and username from localStorage if missing
   useEffect(() => {
@@ -33,7 +34,7 @@ function Editor() {
   useEffect(() => {
     if (!roomId || !username) return;
 
-    const handleError = (err) => {
+    const handleError = () => {
       toast.error("Socket connection failed, please try again.");
       navigate("/home");
     };
@@ -60,6 +61,9 @@ function Editor() {
             prev.filter((client) => client.socketId !== socketId)
           );
         });
+
+        // Set socket to ready
+        setSocketReady(true);
       } catch (error) {
         console.error("Error initializing socket:", error);
       }
@@ -105,9 +109,15 @@ function Editor() {
           </button>
         </div>
       </div>
+
       {/* Main content */}
       <div className="bg-gray-700 w-5/6">
-        <CodeEditor socket={socketRef.current} roomId={roomId} />
+        {/* Only render CodeEditor once the socket is ready */}
+        {socketReady ? (
+          <CodeEditor socket={socketRef.current} roomId={roomId} />
+        ) : (
+          <div>Loading editor...</div> // You can replace this with a loading spinner or message
+        )}
       </div>
     </div>
   );

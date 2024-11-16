@@ -24,8 +24,8 @@ const getAllConnectedClients = (roomId) => {
     );
 };
 
-// Store the latest code for each room
-const roomCodeMap = {};
+// Store the latest code and language for each room
+const roomDataMap = {};
 
 // Handling socket connection
 io.on("connection", (socket) => {
@@ -39,9 +39,9 @@ io.on("connection", (socket) => {
         const clients = getAllConnectedClients(roomId);
         console.log(`Room ID: ${roomId}`, clients);
 
-        // Send the current code to the new client
-        const currentCode = roomCodeMap[roomId] || "// Start coding here...";
-        socket.emit("initCode", { code: currentCode });
+        // Send the current code and language to the new client
+        const currentRoomData = roomDataMap[roomId] || { code: "// Start coding here...", language: "javascript" };
+        socket.emit("initCode", { code: currentRoomData.code, language: currentRoomData.language });
 
         // Broadcast the updated client list to all clients in the room
         io.to(roomId).emit("updateClients", { clients, username });
@@ -50,13 +50,28 @@ io.on("connection", (socket) => {
     // Handling code changes
     socket.on("codeChange", ({ roomId, code }) => {
         // Store the latest code for the room
-        roomCodeMap[roomId] = code;
+        if (!roomDataMap[roomId]) {
+            roomDataMap[roomId] = { code: "// Start coding here...", language: "javascript" };
+        }
+        roomDataMap[roomId].code = code;
 
         // Broadcast the code to all other clients in the room
         socket.to(roomId).emit("codeUpdate", { code });
     });
 
-    // Handling the logic when user leave or disconnect
+    // Handling language change
+    socket.on("languageChange", ({ roomId, language }) => {
+        // Update the language in roomDataMap
+        if (!roomDataMap[roomId]) {
+            roomDataMap[roomId] = { code: "// Start coding here...", language: "javascript" };
+        }
+        roomDataMap[roomId].language = language;
+
+        // Broadcast the new language to all other clients in the room
+        socket.to(roomId).emit("languageUpdate", { language });
+    });
+
+    // Handling the logic when user leaves or disconnects
     socket.on("disconnecting", () => {
         const rooms = Array.from(socket.rooms); // Get all rooms the socket is currently in
         rooms.forEach((roomId) => {

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "This is real time code collaboration app",
   "main": "index.js",
+  
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js"

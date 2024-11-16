@@ -9,6 +9,7 @@ function CodeEditor({ socket, roomId }) {
   const editorRef = useRef(null); // Reference to the Monaco Editor instance
   const containerRef = useRef(null); // Reference to the DOM element containing the editor
   const [lastModified, setLastModified] = useState(null); // State to track the last modified timestamp
+  const [language, setLanguage] = useState("javascript"); // State to manage language selection
 
   // Initialize the room in Firestore and load or create code for the room
   const handleRoom = async () => {
@@ -18,8 +19,9 @@ function CodeEditor({ socket, roomId }) {
 
       if (docSnap.exists()) {
         // Load existing code and last modified timestamp from Firestore
-        const { code, lastModified } = docSnap.data();
+        const { code, lastModified, language } = docSnap.data();
         editorRef.current.setValue(code || "// Write your code here...");
+        setLanguage(language || "javascript"); // Set the language from Firestore
         setLastModified(
           lastModified ? new Date(lastModified.toDate()).toLocaleString() : "N/A"
         );
@@ -27,6 +29,7 @@ function CodeEditor({ socket, roomId }) {
         // Create a new document for the room if it doesn't exist
         await setDoc(docRef, {
           code: "// Write your code here...",
+          language: "javascript", // Default language
           lastModified: serverTimestamp(),
         });
         setLastModified("Just now");
@@ -43,10 +46,11 @@ function CodeEditor({ socket, roomId }) {
       const code = editorRef.current.getValue();
       await updateDoc(docRef, {
         code,
+        language, // Save the current language
         lastModified: serverTimestamp(),
       });
       setLastModified(new Date().toLocaleString());
-      toast.success("code is saved successfully")
+      toast.success("Code is saved successfully!");
     } catch (error) {
       console.error("Error saving code:", error);
     }
@@ -73,7 +77,7 @@ function CodeEditor({ socket, roomId }) {
     // Initialize the Monaco Editor
     const editorInstance = monaco.editor.create(containerRef.current, {
       value: "// Write your code here...",
-      language: "javascript",
+      language: "javascript", // Default language
       theme: "vs-dark",
       automaticLayout: true,
       minimap: { enabled: true },
@@ -120,10 +124,29 @@ function CodeEditor({ socket, roomId }) {
     };
   }, [socket, roomId]);
 
+  // Handle language change
+  const handleLanguageChange = (event) => {
+    const newLanguage = event.target.value;
+    setLanguage(newLanguage);
+    monaco.editor.setModelLanguage(editorRef.current.getModel(), newLanguage);
+    socket.emit("languageChange", { roomId, language: newLanguage });
+  };
+
   return (
     <div className="h-screen w-full bg-gray-900 text-white flex flex-col">
-      <div ref={containerRef} className="flex-1"></div>
-      <div className="p-4 bg-gray-800 flex justify-between items-center">
+      <div className="flex justify-between p-4 bg-gray-800">
+        {/* Language Selector */}
+        <select
+          className="bg-gray-700 text-white px-4 py-2 rounded"
+          value={language}
+          onChange={handleLanguageChange}
+        >
+          <option value="javascript">JavaScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          {/* Add more languages as needed */}
+        </select>
+
         <button
           onClick={saveCodeToFirestore}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded"
@@ -135,6 +158,7 @@ function CodeEditor({ socket, roomId }) {
           <span className="text-sm text-white">{lastModified || "N/A"}</span>
         </div>
       </div>
+      <div ref={containerRef} className="flex-1"></div>
     </div>
   );
 }
